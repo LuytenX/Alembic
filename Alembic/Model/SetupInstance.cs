@@ -1,0 +1,170 @@
+﻿using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Graphics;
+
+using ACViewer.Render;
+
+namespace ACViewer.Model
+{
+    public class SetupInstance
+    {
+        public static GraphicsDevice GraphicsDevice => GameView.Instance.GraphicsDevice;
+        public static Effect Effect => Render.Render.Effect;
+        public static Effect Effect_Clamp => Render.Render.Effect_Clamp;
+        public static Camera Camera => GameView.Camera;
+
+        public Setup Setup { get; set; }
+
+        public Vector3 Position { get; set; }
+        public Quaternion Rotation { get; set; }
+        public Vector3 Scale { get; set; }
+
+        public Matrix WorldTranslate { get; set; }
+        public Matrix WorldRotate { get; set; }
+        public Matrix WorldScale { get; set; }
+
+        public Matrix WorldTransform { get; set; }
+
+        public ViewObject ViewObject => ModelViewer.Instance.ViewObject;
+
+        public float Angle { get; set; }
+
+        public SetupInstance(uint setupID)
+        {
+            Setup = SetupCache.Get(setupID);
+
+            Position = Vector3.Zero;
+            Rotation = Quaternion.Identity;
+            Scale = Vector3.One;
+
+            BuildWorldTransform();
+        }
+
+        /// <summary>
+        /// For loading a SetupInstance with a Clothing Base
+        /// </summary>
+        public SetupInstance(uint setupID, ObjDesc objDesc)
+        {
+            Setup = new Setup(setupID, objDesc);
+            
+            Position = Vector3.Zero;
+            Rotation = Quaternion.Identity;
+            Scale = Vector3.One;
+
+            BuildWorldTransform();
+        }
+
+        public SetupInstance(R_PhysicsObj obj)
+        {
+            var setupID = obj.PhysicsObj.PartArray.Setup._dat.Id;
+
+            if (setupID == 0 && obj.PhysicsObj.PartArray.Parts.Count > 0)
+                setupID = obj.PhysicsObj.PartArray.Parts[0].GfxObj.ID;
+
+            if (setupID == 0)
+                setupID = obj.PhysicsObj.ID;
+
+            Setup = SetupCache.Get(setupID);
+
+            Position = obj.PhysicsObj.Position.Frame.Origin.ToXna();
+            Rotation = obj.PhysicsObj.Position.Frame.Orientation.ToXna();
+            Scale = obj.PhysicsObj.PartArray.Scale.ToXna();
+
+            BuildWorldTransform();
+        }
+
+        public void BuildWorldTransform()
+        {
+            WorldTranslate = Matrix.CreateTranslation(Position);
+            WorldRotate = Matrix.CreateFromQuaternion(Rotation);
+            WorldScale = Matrix.CreateScale(Scale);
+
+            WorldTransform = WorldRotate * WorldScale * WorldTranslate;
+        }
+
+        public void SetRasterizerState()
+        {
+            var rs = new RasterizerState();
+            //rs.CullMode = CullMode.CullClockwiseFace;
+            rs.CullMode = CullMode.None;
+            rs.FillMode = FillMode.Solid;
+            GraphicsDevice.RasterizerState = rs;
+        }
+
+        public void Draw(int polyIdx = -1, int partIdx = -1)
+        {
+            SetRasterizerState();
+
+            var physParts = ViewObject.PhysicsObj.PartArray.Parts;
+
+            var tris = 0;
+            var curPolyIdx = 0;
+            for (var i = 0; i < Setup.Parts.Count; i++)
+            {
+                if (partIdx != -1 && i != partIdx) continue;
+
+                //var placementFrame = Setup.PlacementFrames[i];
+                var part = Setup.Parts[i];
+
+                var partFrame = physParts[i].Pos.Frame;
+                var partTransform = partFrame.ToXna();
+
+                //var transform = placementFrame * partTransform * WorldTransform;
+                var transform = partTransform * WorldTransform;
+
+                if (part.VertexBuffer == null)
+                    part.BuildVertexBuffer();
+
+                GraphicsDevice.SetVertexBuffer(part.VertexBuffer);
+
+                var effect = part.HasWrappingUVs ? Effect : Effect_Clamp;
+
+                effect.Parameters["xWorld"].SetValue(transform);
+
+                foreach (var polygon in part.Polygons)
+                {
+                    // TODO: improve rendering for 2-sided faces
+                    //if (polygon._polygon.Stippling == ACE.Entity.Enum.StipplingType.NoPos) continue;
+                    
+                    if (polyIdx != -1 && polyIdx != curPolyIdx)
+                    {
+                        curPolyIdx++;
+                        continue;
+                    }
+
+                    if (polygon.IndexBuffer == null)
+                        polygon.BuildIndexBuffer();
+
+                    GraphicsDevice.Indices = polygon.IndexBuffer;
+                    effect.Parameters["xTextures"].SetValue(polygon.Texture);
+
+                    foreach (var pass in effect.CurrentTechnique.Passes)
+                    {
+                        pass.Apply();
+
+                        var indexCnt = polygon.Indices.Count;
+                        GraphicsDevice.DrawIndexedPrimitives(PrimitiveType.TriangleList, 0, 0, indexCnt / 3);
+                        //PerfTimer.NumSetup++;
+                        tris += indexCnt / 3;
+                    }
+
+                    curPolyIdx++;
+                }
+            }
+            /*Console.WriteLine($"Drew {tris} triangles");
+            Console.WriteLine($"Camera pos: {Camera.Position}");
+            Console.WriteLine($"Camera dir: {Camera.Dir}");*/
+
+            //UpdateAngle();
+        }
+
+        public void UpdateAngle()
+        {
+            Angle += 1.0f;
+            if (Angle >= 360.0f)
+                Angle = 0.0f;
+
+            Rotation = Quaternion.CreateFromYawPitchRoll(0, 0, Angle * 0.0174533f);
+            BuildWorldTransform();
+        }
+    }
+}

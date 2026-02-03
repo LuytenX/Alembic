@@ -1,0 +1,78 @@
+﻿<Window x:Class="ACViewer.View.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:ACViewer.View"
+        xmlns:scenes="clr-namespace:ACViewer" d:DataContext="{d:DesignInstance Type=local:MainWindow}"
+        mc:Ignorable="d"
+        Title="The Alembic" Width="1342" Height="798" Style="{DynamicResource CustomWindowStyle}" SourceInitialized="Window_SourceInitialized" Closing="Window_Closing">
+    
+    <Grid x:Name="LayoutRoot">
+
+        <Grid.RowDefinitions>
+            <RowDefinition Height="20" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height=".1*" />
+            <RowDefinition Name="HSplit" Height="67" />
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Name="VSplit" Width="180" />
+            <ColumnDefinition Width="20" />
+            <ColumnDefinition Width=".1*" />
+        </Grid.ColumnDefinitions>
+
+        <local:MainMenu x:Name="menuMain" Grid.Row="0" Grid.ColumnSpan="3"/>
+
+        <WrapPanel Grid.Row="1" Grid.ColumnSpan="3" Background="#333" Orientation="Horizontal" VerticalAlignment="Center">
+            <CheckBox Content="Terrain Height (E)" IsChecked="{Binding EditMode, Mode=TwoWay}" Foreground="White" Margin="5,5"/>
+            <CheckBox Content="Paint Textures" IsChecked="{Binding PaintMode, Mode=TwoWay}" Foreground="White" Margin="5,5"/>
+            <CheckBox Content="Objects" IsChecked="{Binding ObjectMode, Mode=TwoWay}" Foreground="White" Margin="5,5"/>
+            <Label Content="ID:" Foreground="White" VerticalAlignment="Center" Margin="5,0,0,0"/>
+            <TextBox Text="{Binding CurrentObjectIdHex, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Width="70" VerticalAlignment="Center" Background="#444" Foreground="White" Margin="2,5"/>
+            <Separator Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}" Margin="5,0"/>
+            <CheckBox Content="Free Roam" IsChecked="{Binding FreeRoam, Mode=TwoWay}" Foreground="White" Margin="5,5"/>
+            <CheckBox Content="Expand" IsChecked="{Binding WorldView, Mode=TwoWay}" Foreground="White" Margin="5,5"/>
+            <Label Content="Jump:" Foreground="White" VerticalAlignment="Center" Margin="5,0,0,0"/>
+            <TextBox x:Name="JumpLbidText" Width="40" VerticalAlignment="Center" Background="#444" Foreground="White" Margin="2,5"/>
+            <Button Content="Go" Command="{Binding JumpCommand}" Background="#444" Foreground="White" Padding="5,0" Margin="2,5"/>
+            <Separator Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}" Margin="5,0"/>
+            <Label Content="Brush Size:" Foreground="White" VerticalAlignment="Center" Margin="5,0,0,0"/>
+            <Slider Minimum="1" Maximum="100" Value="{Binding BrushSize, Mode=TwoWay}" Width="100" VerticalAlignment="Center" TickFrequency="1" IsSnapToTickEnabled="True" Margin="2,5"/>
+            <TextBlock Text="{Binding BrushSize, StringFormat={}{0:F0}}" Foreground="White" VerticalAlignment="Center" Margin="5,0" Width="25"/>
+            <Separator Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}" Margin="5,0"/>
+            <Label Content="Strength:" Foreground="White" VerticalAlignment="Center" Margin="5,0,0,0"/>
+            <Slider Minimum="1" Maximum="20" Value="{Binding BrushStrength, Mode=TwoWay}" Width="80" VerticalAlignment="Center" TickFrequency="1" IsSnapToTickEnabled="True" Margin="2,5"/>
+            <TextBlock Text="{Binding BrushStrength}" Foreground="White" VerticalAlignment="Center" Margin="5,0" Width="20"/>
+            <Separator Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}" Margin="5,0"/>
+            <CheckBox Content="Eye Dropper" IsChecked="{Binding EyeDropperMode, Mode=TwoWay}" Foreground="White" Margin="5,5"/>
+            <Separator Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}" Margin="5,0"/>
+            <CheckBox Content="Inspect Building" IsChecked="{Binding BuildingInspectionMode, Mode=TwoWay}" Foreground="White" Margin="5,5"/>
+            <Separator Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}" Margin="5,0"/>
+            <Label Content="Terrain:" Foreground="White" VerticalAlignment="Center" Margin="5,0,0,0"/>
+            <ComboBox x:Name="TerrainSelector" Width="120" SelectionChanged="TerrainSelector_SelectionChanged" DisplayMemberPath="TerrainName" 
+                      Background="{DynamicResource ComboBox.Static.Background}" 
+                      Foreground="{DynamicResource ABrush.Foreground.Static}" Margin="2,5"/>
+            <TextBox x:Name="TerrainIdText" Width="30" VerticalAlignment="Center" Background="#444" Foreground="White" TextChanged="TerrainIdText_TextChanged" Margin="5,5"/>
+            <Separator Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}" Margin="5,0"/>
+            <TextBlock Text="Hotkeys: WASD=Move, CTRL+LMB=Rotate, F4=Dungeons, Shift=Lower/Del, []=Size, -=Strength" Foreground="#AAA" VerticalAlignment="Center" Margin="10,5" FontSize="10"/>
+            <Separator Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}" Margin="5,0"/>
+        </WrapPanel>
+
+        <local:FileExplorer Grid.Row="2" Margin="0,0,0,7.5"/>
+
+        <GridSplitter Grid.Column="1" Grid.Row="2" HorizontalAlignment="Center" Width="4.5"/>
+
+        <scenes:GameView x:Name="Scene" Grid.Row="2" Grid.Column="2" Margin="0,22,10,7.5" />
+
+        <GridSplitter Grid.Row="3" Grid.ColumnSpan="3" HorizontalAlignment="Stretch" VerticalAlignment="Top" Height="3.75" ResizeDirection="Rows" />
+
+        <TextBox Name="Status" TextWrapping="Wrap" Margin="7.5,7.5,7.5,7.5" Padding="3" Grid.Row="3" Grid.ColumnSpan="3" ScrollViewer.VerticalScrollBarVisibility="Auto" />
+
+    </Grid>
+
+    <Window.InputBindings>
+        <KeyBinding Command="{Binding TeleportCommand}" Gesture="Ctrl+T" />
+        <KeyBinding Command="{Binding DebugCommand}" Gesture="Ctrl+D" />
+    </Window.InputBindings>
+</Window>

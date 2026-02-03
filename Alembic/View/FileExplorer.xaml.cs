@@ -1,0 +1,387 @@
+﻿using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.IO;
+using System.Linq;
+using System.Runtime.CompilerServices;
+using System.Media;
+using System.Windows;
+using System.Windows.Controls;
+
+using ACE.DatLoader;
+using ACE.DatLoader.FileTypes;
+
+using ACViewer.Data;
+using ACViewer.Enum;
+using ACViewer.FileTypes;
+
+namespace ACViewer.View
+{
+    /// <summary>
+    /// Interaction logic for FileType.xaml
+    /// </summary>
+    public partial class FileExplorer : UserControl, INotifyPropertyChanged
+    {
+        public static MainWindow MainWindow => MainWindow.Instance;
+        public static FileInfo FileInfo => FileInfo.Instance;
+
+        public static GameView GameView => GameView.Instance;
+        public static ModelViewer ModelViewer => ModelViewer.Instance;
+        public static TextureViewer TextureViewer => TextureViewer.Instance;
+
+        public static List<Entity.FileType> FileTypes { get; set; }
+
+        private List<string> _fileIDs { get; set; }
+
+        public bool PortalMode { get; set; } = true;
+
+        public uint Selected_FileID { get; set; }
+        public static FileExplorer Instance { get; set; }
+
+        public bool TeleportMode { get; set; }
+
+        public History History { get; set; }
+        public bool SuppressHistory { get; set; }
+
+        public List<string> FileIDs
+        {
+            get => _fileIDs;
+            set
+            {
+                _fileIDs = value;
+                NotifyPropertyChanged("FileIDs");
+            }
+        }
+
+        public event PropertyChangedEventHandler PropertyChanged;
+
+        public FileExplorer()
+        {
+            InitializeComponent();
+            Instance = this;
+
+            FileTypes = new List<Entity.FileType>()
+            {
+                new Entity.FileType(0xFFFF, "Landblock", typeof(ACE.DatLoader.FileTypes.CellLandblock)),
+                new Entity.FileType(0xFFFE, "LandblockInfo", typeof(ACE.DatLoader.FileTypes.LandblockInfo)),
+                new Entity.FileType(0x100, "EnvCell", typeof(ACE.DatLoader.FileTypes.EnvCell)),
+                new Entity.FileType(0x01, "GfxObj", typeof(ACE.DatLoader.FileTypes.GfxObj)),
+                new Entity.FileType(0x02, "Setup", typeof(SetupModel)),
+            };
+
+            DIDTables.Load();
+            LootArmorList.Load();
+
+            History = new History();
+
+            DataContext = this;
+        }
+
+        private void FileType_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (DatManager.CellDat == null || DatManager.PortalDat == null)
+                return;
+
+            var selected = (Entity.FileType)FileType.SelectedItem;
+
+            if (selected == null) return;
+
+            PortalMode = selected.ID != 0xFFFF && selected.ID != 0xFFFE && selected.ID != 0x100;
+
+            // strings
+            if (selected.ID == 0x23)
+                FileIDs = DatManager.LanguageDat.AllFiles.Keys.Where(i => i >> 24 == selected.ID).OrderBy(i => i).Select(i => i.ToString("X8")).ToList();
+
+            // portal files
+            else if (selected.ID <= 0x34)
+                FileIDs = DatManager.PortalDat.AllFiles.Keys.Where(i => i >> 24 == selected.ID).OrderBy(i => i).Select(i => i.ToString("X8")).ToList();
+
+            // landblock
+            else if (selected.ID == 0xFFFF)
+            {
+                FileIDs = DatManager.CellDat.AllFiles.Keys.Where(i => (i & 0xFFFF) == selected.ID).OrderBy(i => i).Select(i => i.ToString("X8")).ToList();
+                MapViewer.Instance.Init();
+            }
+
+            // landblock info
+            else if (selected.ID == 0xFFFE)
+            {
+                FileIDs = DatManager.CellDat.AllFiles.Keys.Where(i => (i & 0xFFFF) == selected.ID).OrderBy(i => i).Select(i => i.ToString("X8")).ToList();
+                MapViewer.Instance.Init();
+            }
+            // envcell
+            else if (selected.ID == 0x100)
+                FileIDs = DatManager.CellDat.AllFiles.Keys.Where(i => (i & 0xFFFF) >= selected.ID && (i & 0xFFFF) < 0xFFFE).OrderBy(i => i).Select(i => i.ToString("X8")).ToList();
+
+            // other
+            else
+                FileIDs = DatManager.PortalDat.AllFiles.Keys.Where(i => i == selected.ID).OrderBy(i => i).Select(i => i.ToString("X8")).ToList();
+
+            MainWindow.Status.WriteLine($"{selected.Name}s: {FileIDs.Count:N0}");
+        }
+
+        private void NotifyPropertyChanged([CallerMemberName] string propertyName = "")
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+
+        private void Files_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            var fileID = Convert.ToUInt32((string)Files.SelectedItem, 16);
+            if (fileID == 0) return;
+
+            Selected_FileID = fileID;
+
+            if (PortalMode)
+                ReadPortalFile(fileID);
+            else
+                ReadCellFile(fileID);
+        }
+
+        public void ReadCellFile(uint fileID)
+        {
+            switch (fileID & 0xFFFF)
+            {
+                case 0xFFFF:
+                    var landblock = DatManager.CellDat.ReadFromDat<ACE.DatLoader.FileTypes.CellLandblock>(fileID);
+                    FileInfo.SetInfo(new FileTypes.CellLandblock(landblock).BuildTree());
+
+                    // Main view
+                    if (GameView.WorldViewer == null)
+                        GameView.WorldViewer = new WorldViewer();
+                    
+                    GameView.ViewMode = ViewMode.World;
+                    GameView.WorldViewer.LoadLandblock(fileID, WorldViewer.WorldView ? 3u : 1u);
+
+                    break;
+                case 0xFFFE:
+                    var landblockInfo = DatManager.CellDat.ReadFromDat<ACE.DatLoader.FileTypes.LandblockInfo>(fileID);
+                    FileInfo.SetInfo(new FileTypes.LandblockInfo(landblockInfo).BuildTree());
+
+                    // Main view
+                    if (GameView.WorldViewer == null)
+                        GameView.WorldViewer = new WorldViewer();
+
+                    GameView.ViewMode = ViewMode.World;
+                    GameView.WorldViewer.LoadLandblock(fileID | 0xFFFF, WorldViewer.WorldView ? 3u : 1u);
+
+                    break;
+                /* >= 0x100 && < 0xFFEE */
+                default:
+                    var envCell = DatManager.CellDat.ReadFromDat<ACE.DatLoader.FileTypes.EnvCell>(fileID);
+                    FileInfo.SetInfo(new FileTypes.EnvCell(envCell).BuildTree());
+                    // Preview
+                    GameView.PreviewMode = ViewMode.Model;
+                    ModelViewer.LoadEnvCell(fileID);
+                    break;
+            }
+        }
+
+        public static readonly float PaletteScale = 12.0f;
+
+        public void ReadPortalFile(uint fileID)
+        {
+            switch (fileID >> 24)
+            {
+                case 0x01:
+                    var gfxObj = DatManager.PortalDat.ReadFromDat<ACE.DatLoader.FileTypes.GfxObj>(fileID);
+                    FileInfo.SetInfo(new FileTypes.GfxObj(gfxObj).BuildTree());
+                    GameView.PreviewMode = ViewMode.Model;
+                    ModelViewer.LoadModel(fileID);
+                    if (MainWindow.Instance != null) MainWindow.Instance.CurrentObjectIdHex = fileID.ToString("X8");
+                    break;
+                case 0x02:
+                    var setup = DatManager.PortalDat.ReadFromDat<SetupModel>(fileID);
+                    FileInfo.SetInfo(new Setup(setup).BuildTree());
+                    GameView.PreviewMode = ViewMode.Model;
+                    ModelViewer.LoadModel(fileID);
+                    if (MainWindow.Instance != null) MainWindow.Instance.CurrentObjectIdHex = fileID.ToString("X8");
+                    break;
+                case 0x03:
+                    var anim = DatManager.PortalDat.ReadFromDat<ACE.DatLoader.FileTypes.Animation>(fileID);
+                    FileInfo.SetInfo(new FileTypes.Animation(anim).BuildTree());
+                    break;
+                case 0x04:
+                    var palette = DatManager.PortalDat.ReadFromDat<ACE.DatLoader.FileTypes.Palette>(fileID);
+                    FileInfo.SetInfo(new FileTypes.Palette(palette).BuildTree());
+                    GameView.PreviewMode = ViewMode.Texture;
+                    TextureViewer.LoadTexture(fileID);
+                    if (TextureViewer.CurScale < PaletteScale)
+                        TextureViewer.SetScale(PaletteScale);
+                    break;
+                case 0x05:
+                    var surfaceTexture = DatManager.PortalDat.ReadFromDat<ACE.DatLoader.FileTypes.SurfaceTexture>(fileID);
+                    FileInfo.SetInfo(new FileTypes.SurfaceTexture(surfaceTexture).BuildTree());
+                    GameView.PreviewMode = ViewMode.Texture;
+                    TextureViewer.LoadTexture(fileID);
+                    break;
+                case 0x06:
+                    var texture = DatManager.PortalDat.ReadFromDat<ACE.DatLoader.FileTypes.Texture>(fileID);
+                    FileInfo.SetInfo(new FileTypes.Texture(texture).BuildTree());
+                    GameView.PreviewMode = ViewMode.Texture;
+                    TextureViewer.LoadTexture(fileID);
+                    break;
+                case 0x08:
+                    var surface = DatManager.PortalDat.ReadFromDat<ACE.DatLoader.FileTypes.Surface>(fileID);
+                    FileInfo.SetInfo(new FileTypes.Surface(surface).BuildTree(fileID));
+                    GameView.PreviewMode = ViewMode.Texture;
+                    TextureViewer.LoadTexture(fileID);
+                    break;
+                case 0x09:
+                    var motionTable = DatManager.PortalDat.ReadFromDat<ACE.DatLoader.FileTypes.MotionTable>(fileID);
+                    FileInfo.SetInfo(new FileTypes.MotionTable(motionTable).BuildTree());
+                    break;
+                case 0x0A:
+                    var sound = DatManager.PortalDat.ReadFromDat<Wave>(fileID);
+                    FileInfo.SetInfo(new Sound(sound).BuildTree(fileID));
+                    using (var stream = new MemoryStream())
+                    {
+                        sound.ReadData(stream);
+                        var soundPlayer = new SoundPlayer(stream);
+                        stream.Seek(0, SeekOrigin.Begin);
+                        try
+                        {
+                            soundPlayer.Play();
+                        }
+                        catch (Exception e)
+                        {
+                            Console.WriteLine(e);
+                        }
+                        stream.Close();
+                    }
+                    break;
+                case 0x0D:
+                    var environment = DatManager.PortalDat.ReadFromDat<ACE.DatLoader.FileTypes.Environment>(fileID);
+                    FileInfo.SetInfo(new FileTypes.Environment(environment).BuildTree());
+                    GameView.PreviewMode = ViewMode.Model;
+                    ModelViewer.LoadEnvironment(fileID);
+                    break;
+                case 0x0E:
+                    if (fileID == 0x0E000002)
+                    {
+                        var charGen = DatManager.PortalDat.ReadFromDat<ACE.DatLoader.FileTypes.CharGen>(fileID);
+                        FileInfo.SetInfo(new FileTypes.CharGen(charGen).BuildTree());
+                    }
+                    else if (fileID == 0x0E000003)
+                    {
+                        var vitalTable = DatManager.PortalDat.ReadFromDat<ACE.DatLoader.FileTypes.SecondaryAttributeTable>(fileID);
+                        FileInfo.SetInfo(new FileTypes.SecondaryAttributeTable(vitalTable).BuildTree());
+                    }
+                    else if (fileID == 0x0E000004)
+                    {
+                        var skillTable = DatManager.PortalDat.ReadFromDat<ACE.DatLoader.FileTypes.SkillTable>(fileID);
+                        FileInfo.SetInfo(new FileTypes.SkillTable(skillTable).BuildTree());
+                    }
+                    else if (fileID == 0x0E000007)
+                    {
+                        var chatPoseTable = DatManager.PortalDat.ReadFromDat<ACE.DatLoader.FileTypes.ChatPoseTable>(fileID);
+                        FileInfo.SetInfo(new FileTypes.ChatPoseTable(chatPoseTable).BuildTree());
+                    }
+                    else if (fileID == 0x0E00000D)
+                    {
+                        var generatorTable = DatManager.PortalDat.ReadFromDat<ACE.DatLoader.FileTypes.GeneratorTable>(fileID);
+                        FileInfo.SetInfo(new FileTypes.GeneratorTable(generatorTable).BuildTree());
+                    }
+                    else if (fileID == 0x0E00000E)
+                    {
+                        var spellTable = DatManager.PortalDat.ReadFromDat<ACE.DatLoader.FileTypes.SpellTable>(fileID);
+                        FileInfo.SetInfo(new FileTypes.SpellTable(spellTable).BuildTree());
+                    }
+                    else if (fileID == 0x0E00000F)
+                    {
+                        var spellComponentsTable = DatManager.PortalDat.ReadFromDat<ACE.DatLoader.FileTypes.SpellComponentsTable>(fileID);
+                        FileInfo.SetInfo(new FileTypes.SpellComponentsTable(spellComponentsTable).BuildTree());
+                    }
+                    else if (fileID == 0x0E000018)
+                    {
+                        var xpTable = DatManager.PortalDat.ReadFromDat<ACE.DatLoader.FileTypes.XpTable>(fileID);
+                        FileInfo.SetInfo(new FileTypes.XpTable(xpTable).BuildTree());
+                    }
+                    else if (fileID == 0x0E00001A)
+                    {
+                        var badData = DatManager.PortalDat.ReadFromDat<ACE.DatLoader.FileTypes.BadData>(fileID);
+                        FileInfo.SetInfo(new FileTypes.BadData(badData).BuildTree());
+                    }
+                    else if (fileID == 0x0E00001D)
+                    {
+                        var contractTable = DatManager.PortalDat.ReadFromDat<ACE.DatLoader.FileTypes.ContractTable>(fileID);
+                        FileInfo.SetInfo(new FileTypes.ContractTable(contractTable).BuildTree());
+                    }
+                    else if (fileID == 0x0E00001E)
+                    {
+                        var tabooTable = DatManager.PortalDat.ReadFromDat<ACE.DatLoader.FileTypes.TabooTable>(fileID);
+                        FileInfo.SetInfo(new FileTypes.TabooTable(tabooTable).BuildTree());
+                    }
+                    else if (fileID == 0x0E000020)
+                    {
+                        var nameFilterTable = DatManager.PortalDat.ReadFromDat<ACE.DatLoader.FileTypes.NameFilterTable>(fileID);
+                        FileInfo.SetInfo(new FileTypes.NameFilterTable(nameFilterTable).BuildTree());
+                    }
+                    break;
+                case 0x0F:
+                    var paletteSet = DatManager.PortalDat.ReadFromDat<ACE.DatLoader.FileTypes.PaletteSet>(fileID);
+                    FileInfo.SetInfo(new FileTypes.PaletteSet(paletteSet).BuildTree());
+                    GameView.PreviewMode = ViewMode.Texture;
+                    TextureViewer.LoadTexture(fileID);
+                    if (TextureViewer.CurScale < PaletteScale / 2.0f)
+                        TextureViewer.SetScale(PaletteScale / 2.0f);
+                    break;
+                case 0x10:
+                    var clothing = DatManager.PortalDat.ReadFromDat<ACE.DatLoader.FileTypes.ClothingTable>(fileID);
+                    FileInfo.SetInfo(new FileTypes.ClothingTable(clothing).BuildTree());
+                    GameView.PreviewMode = ViewMode.Model;
+                    break;
+                case 0x11:
+                    var degradeInfo = DatManager.PortalDat.ReadFromDat<GfxObjDegradeInfo>(fileID);
+                    FileInfo.SetInfo(new DegradeInfo(degradeInfo).BuildTree());
+                    break;
+                case 0x12:
+                    var scene = DatManager.PortalDat.ReadFromDat<ACE.DatLoader.FileTypes.Scene>(fileID);
+                    FileInfo.SetInfo(new FileTypes.Scene(scene).BuildTree());
+                    break;
+                case 0x13:
+                    var region = DatManager.PortalDat.ReadFromDat<RegionDesc>(fileID);
+                    FileInfo.SetInfo(new Region(region).BuildTree());
+                    break;
+                case 0x20:
+                    var soundTable = DatManager.PortalDat.ReadFromDat<ACE.DatLoader.FileTypes.SoundTable>(fileID);
+                    FileInfo.SetInfo(new FileTypes.SoundTable(soundTable).BuildTree());
+                    break;
+                case 0x22:
+                    var enumMapper = DatManager.PortalDat.ReadFromDat<ACE.DatLoader.FileTypes.EnumMapper>(fileID);
+                    FileInfo.SetInfo(new FileTypes.EnumMapper(enumMapper).BuildTree());
+                    break;
+                case 0x23:
+                    var stringTable = DatManager.LanguageDat.ReadFromDat<ACE.DatLoader.FileTypes.StringTable>(fileID);
+                    FileInfo.SetInfo(new FileTypes.StringTable(stringTable).BuildTree());
+                    break;
+                case 0x25:
+                    var didMapper = DatManager.PortalDat.ReadFromDat<ACE.DatLoader.FileTypes.DidMapper>(fileID);
+                    FileInfo.SetInfo(new FileTypes.DidMapper(didMapper).BuildTree());
+                    break;
+                case 0x27:
+                    var dualDidMapper = DatManager.PortalDat.ReadFromDat<ACE.DatLoader.FileTypes.DualDidMapper>(fileID);
+                    FileInfo.SetInfo(new FileTypes.DualDidMapper(dualDidMapper).BuildTree());
+                    break;
+                case 0x30:
+                    var combatTable = DatManager.PortalDat.ReadFromDat<CombatManeuverTable>(fileID);
+                    FileInfo.SetInfo(new CombatTable(combatTable).BuildTree());
+                    break;
+                case 0x32:
+                    var emitterInfo = DatManager.PortalDat.ReadFromDat<ACE.DatLoader.FileTypes.ParticleEmitterInfo>(fileID);
+                    FileInfo.SetInfo(new FileTypes.ParticleEmitterInfo(emitterInfo).BuildTree());
+                    ParticleViewer.Instance.InitEmitter(fileID, 1.0f);
+                    break;
+                case 0x33:
+                    var playScript = DatManager.PortalDat.ReadFromDat<ACE.DatLoader.FileTypes.PhysicsScript>(fileID);
+                    FileInfo.SetInfo(new FileTypes.PhysicsScript(playScript).BuildTree());
+                    ParticleViewer.Instance.InitEmitter(fileID, 1.0f);
+                    break;
+                case 0x34:
+                    var pScriptTable = DatManager.PortalDat.ReadFromDat<ACE.DatLoader.FileTypes.PhysicsScriptTable>(fileID);
+                    FileInfo.SetInfo(new FileTypes.PhysicsScriptTable(pScriptTable).BuildTree());
+                    break;
+            }
+        }
+    }
+}

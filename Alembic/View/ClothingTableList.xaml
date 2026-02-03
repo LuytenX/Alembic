@@ -1,0 +1,22 @@
+﻿<UserControl x:Class="ACViewer.View.ClothingTableList"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:ACViewer.View"
+             mc:Ignorable="d" 
+             d:DesignHeight="450" d:DesignWidth="800">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height=".5*"/>
+            <RowDefinition Height=".4*"/>
+            <RowDefinition Height=".1*"/>
+        </Grid.RowDefinitions>
+        <ListBox Name="SetupIds" Width="170" Margin="7.5,7.5,0,0" SelectionChanged="SetupIDs_OnClick" />
+        <ListBox Name="PaletteTemplates" Grid.Row="1" Width="170" Margin="7.5,7.5,0,0" SelectionChanged="PaletteTemplates_OnClick" />
+        <Grid Grid.Row="2" Margin="7.5,7.5,0,0" Width="170">
+            <Slider Name="Shades" Width="170" IsEnabled="False" ValueChanged="Shades_ValueChanged" SmallChange="1" IsSnapToTickEnabled="True" />
+            <Label x:Name="lblShade" Content="Shade: 0.1234" HorizontalAlignment="Left" Margin="0,21,0,0" VerticalAlignment="Top" Width="145"/>
+        </Grid>
+    </Grid>
+</UserControl>

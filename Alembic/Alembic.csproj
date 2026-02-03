@@ -1,0 +1,127 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows7.0</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <ApplicationIcon />
+    <StartupObject />
+    <AssemblyName>Alembic</AssemblyName>
+    <Title>The Alembic</Title>
+    <Product>Alembic</Product>
+    <Description>Asheron's Call World Editor</Description>
+    <GenerateErrorForMissingTargetingPacks>false</GenerateErrorForMissingTargetingPacks>
+    <NoWarn>$(NoWarn);NETSDK1206</NoWarn>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <OutputType>WinExe</OutputType>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Remove="Content\Content.mgcb" />
+    <None Remove="Content\Fonts\password.ttf" />
+    <None Remove="Icons\about.png" />
+    <None Remove="Icons\Armor.png" />
+    <None Remove="Icons\Checkmark_16x.png" />
+    <None Remove="Icons\export-file.png" />
+    <None Remove="Icons\help.png" />
+    <None Remove="Icons\HelpApplication_16x.png" />
+    <None Remove="Icons\NewFile_16x.png" />
+    <None Remove="Icons\OpenFile_16x.png" />
+    <None Remove="Icons\plume.png" />
+    <None Remove="Icons\portal.png" />
+    <None Remove="Icons\question-mark.png" />
+    <None Remove="Icons\Question_16x.png" />
+    <None Remove="Icons\Search_16x.png" />
+    <None Remove="Icons\Settings_16x.png" />
+    <None Remove="Icons\Settings_16x_inverted.png" />
+    <None Remove="Icons\StatusCriticalError_16x.png" />
+  </ItemGroup>
+
+  <!-- <ItemGroup>
+    <MonoGameContentReference Include="Content\Content.mgcb" />
+  </ItemGroup> -->
+
+  <ItemGroup>
+	  <PackageReference Include="AssimpNet" Version="5.0.0-beta1" />
+	  <PackageReference Include="MonoGame.Framework.WindowsDX" Version="3.8.0.1641" />
+	  <!-- <PackageReference Include="MonoGame.Content.Builder.Task" Version="3.8.0.1641" /> -->
+	  <PackageReference Include="MonoGame.Framework.WpfInterop" Version="1.9.2" />
+	  <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+	  <PackageReference Include="UkooLabs.FbxSharpie" Version="1.0.99" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ApplicationDefinition Include="View/App.xaml" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ACE\Source\ACE.Common\ACE.Common.csproj" />
+    <ProjectReference Include="..\ACE\Source\ACE.Database\ACE.Database.csproj" />
+    <ProjectReference Include="..\ACE\Source\ACE.DatLoader\ACE.DatLoader.csproj" />
+    <ProjectReference Include="..\ACE\Source\ACE.Entity\ACE.Entity.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="Content\Fonts\password.ttf" />
+    <Resource Include="Icons\about.png" />
+    <Resource Include="Icons\armor.png" />
+    <Resource Include="Icons\Checkmark_16x.png" />
+    <Resource Include="Icons\export-file.png" />
+    <Resource Include="Icons\help.png" />
+    <Resource Include="Icons\HelpApplication_16x.png" />
+    <Resource Include="Icons\NewFile_16x.png" />
+    <Resource Include="Icons\OpenFile_16x.png" />
+    <Resource Include="Icons\plume.png" />
+    <Resource Include="Icons\portal.png" />
+    <Resource Include="Icons\question-mark.png" />
+    <Resource Include="Icons\Question_16x.png" />
+    <Resource Include="Icons\Search_16x.png" />
+    <Resource Include="Icons\Settings_16x.png" />
+    <Resource Include="Icons\Settings_16x_inverted.png" />
+    <Resource Include="Icons\StatusCriticalError_16x.png" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="Content\Images\highres.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="Content\Fonts\Consolas.xnb">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="Content\Fonts\Consolas.spritefont">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="Content\texture.fx">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="Content\texture_clamp.fx">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="Content\texture.mgfxo">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="Content\texture_clamp.mgfxo">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="Data\DIDTables.txt">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="Data\Locations.txt">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="Data\LootArmor.txt">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+
+	<PropertyGroup>
+		<SourceRevisionId>build$([System.DateTime]::UtcNow.ToString("yyyyMMddHHmmss"))</SourceRevisionId>
+	</PropertyGroup>	
+</Project>

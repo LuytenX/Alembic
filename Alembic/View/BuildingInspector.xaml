@@ -1,0 +1,35 @@
+<Window x:Class="ACViewer.View.BuildingInspector"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Building Structure Inspector" Height="600" Width="800"
+        WindowStartupLocation="CenterOwner">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        
+        <ToolBar Grid.Row="0" Height="30">
+            <Button x:Name="btnCopyAll" Content="Copy All" Click="BtnCopyAll_Click" Margin="2"/>
+            <Button x:Name="btnExport" Content="Export" Click="BtnExport_Click" Margin="2"/>
+            <Separator/>
+            <CheckBox x:Name="chkShowDetails" Content="Show Details" IsChecked="True" Margin="2"/>
+        </ToolBar>
+        
+        <TextBox x:Name="txtStructureInfo" Grid.Row="1" 
+                 TextWrapping="Wrap" 
+                 AcceptsReturn="True" 
+                 AcceptsTab="True"
+                 VerticalScrollBarVisibility="Auto"
+                 HorizontalScrollBarVisibility="Auto"
+                 FontFamily="Consolas"
+                 FontSize="11"/>
+        
+        <StatusBar Grid.Row="2">
+            <StatusBarItem>
+                <TextBlock x:Name="lblStatus" Text="Ready"/>
+            </StatusBarItem>
+        </StatusBar>
+    </Grid>
+</Window>
